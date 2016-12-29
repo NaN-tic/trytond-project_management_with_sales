@@ -14,7 +14,7 @@ from trytond.tools import reduce_ids, grouped_slice
 from datetime import date
 from trytond.modules.product import price_digits
 
-__all__ = ['Sale', 'Work', 'ProjectSummary']
+__all__ = ['Sale', 'SaleLine', 'Work', 'ProjectSummary']
 
 
 class Work:
@@ -24,7 +24,7 @@ class Work:
     @classmethod
     def _get_related_cost_and_revenue(cls):
         res = super(Work, cls)._get_related_cost_and_revenue()
-        return res + [('sale.sale', 'parent', '_get_revenue',
+        return res + [('sale.line', 'project', '_get_revenue',
             '_get_cost')]
 
 
@@ -36,27 +36,36 @@ class ProjectSummary:
     @classmethod
     def union_models(cls):
         res = super(ProjectSummary, cls).union_models()
-        return ['sale.sale'] + res
+        return ['sale.line'] + res
 
+
+class SaleLine:
+    __name__ = 'sale.line'
+    __metaclass__ = PoolMeta
+
+    project = fields.Many2One('project.work', 'Project', readonly=True,
+        select=True)
+
+    @classmethod
+    def _get_cost(cls, lines):
+        return dict((w.id, w.cost_price*Decimal(str(w.quantity)))
+                for w in lines)
+
+    @classmethod
+    def _get_revenue(cls, lines):
+        return dict((w.id, w.unit_price*Decimal(str(w.quantity)))
+            for w in lines)
+
+    @staticmethod
+    def _get_summary_related_field():
+        return 'project'
 
 class Sale:
     __name__ = 'sale.sale'
     __metaclass__ = PoolMeta
 
-    parent = fields.Many2One('project.work', 'Project', readonly=True,
-        select=True)
     parent_project = fields.Many2One('project.work', 'Parent Project',
         select=True)
-
-    @classmethod
-    def _get_cost(cls, sales):
-        return dict.fromkeys([w.id for w in sales], Decimal(0))
-
-
-    @classmethod
-    def _get_revenue(cls, sales):
-        return dict( (w.id, w.untaxed_amount) for w in sales)
-
 
     @classmethod
     def process(cls, sales):
@@ -65,14 +74,14 @@ class Sale:
 
     @classmethod
     def create_projects(cls, sales):
-        to_write = []
+        pool = Pool()
+        SaleLine = pool.get('sale.line')
         for sale in sales:
-            if not sale.parent_project or sale.parent:
+            if not sale.parent_project:
                 continue
             project = sale._get_project()
-            sale.parent = project
-            to_write.append(sale)
-        cls.save(to_write)
+            project.save()
+            SaleLine.write([x for x in sale.lines], {'project': project.id})
 
     def _get_project(self):
         Work = Pool().get('project.work')
@@ -82,8 +91,8 @@ class Sale:
         project.product_goods = self.parent_project.product_goods
         project.uom = self.parent_project.uom
         project.company = self.company
-        project.project_invoice_method = 'milestone' # TODO new module
-        project.invoice_product_type = 'goods'
+        project.project_invoice_method = self.parent_project.invoice_method
+        project.invoice_product_type = self.parent_project.invoice_product_type
         project.parent = self.parent_project
         project.party = self.party
         project.party_address = self.invoice_address

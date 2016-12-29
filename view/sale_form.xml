@@ -6,8 +6,6 @@
         <group id="work" colspan="6" col="10">
             <label name="parent_project"/>
             <field name="parent_project"/>
-            <label name="parent"/>
-            <field name="parent"/>
         </group>
     </xpath>
 </data>
