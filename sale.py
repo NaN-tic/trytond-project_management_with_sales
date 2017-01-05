@@ -21,6 +21,8 @@ class Work:
     __name__ = 'project.work'
     __metaclass__ = PoolMeta
 
+    sale_lines = fields.One2Many('sale.line', 'project', 'Sale lines')
+
     @classmethod
     def _get_related_cost_and_revenue(cls):
         res = super(Work, cls)._get_related_cost_and_revenue()
@@ -48,13 +50,13 @@ class SaleLine:
 
     @classmethod
     def _get_cost(cls, lines):
-        return dict((w.id, w.cost_price*Decimal(str(w.quantity)))
-                for w in lines)
+        return dict((w.id, (w.cost_price or 0)*Decimal(str(w.quantity or 0)))
+                for w in lines if w.type == 'line')
 
     @classmethod
     def _get_revenue(cls, lines):
-        return dict((w.id, w.unit_price*Decimal(str(w.quantity)))
-            for w in lines)
+        return dict((w.id, (w.unit_price or 0)*Decimal(str(w.quantity or 0)))
+            for w in lines if w.type == 'line')
 
     @staticmethod
     def _get_summary_related_field():
