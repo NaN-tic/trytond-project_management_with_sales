@@ -10,9 +10,7 @@ from trytond.model import fields
 from trytond.pyson import Eval, Id
 from trytond.transaction import Transaction
 from trytond.pool import Pool, PoolMeta
-from trytond.tools import reduce_ids, grouped_slice
 from datetime import date
-from trytond.modules.product import price_digits
 
 __all__ = ['Sale', 'SaleLine', 'Work', 'ProjectSummary']
 
@@ -24,10 +22,9 @@ class Work:
     sale_lines = fields.One2Many('sale.line', 'project', 'Sale lines')
 
     @classmethod
-    def _get_related_cost_and_revenue(cls):
-        res = super(Work, cls)._get_related_cost_and_revenue()
-        return res + [('sale.line', 'project', '_get_revenue',
-            '_get_cost')]
+    def _get_summary_models(cls):
+        res = super(Work, cls)._get_summary_models()
+        return res + [('sale.line', 'project', 'get_total')]
 
 
 class ProjectSummary:
@@ -49,18 +46,36 @@ class SaleLine:
         select=True)
 
     @classmethod
-    def _get_cost(cls, lines):
-        return dict((w.id, (w.cost_price or 0)*Decimal(str(w.quantity or 0)))
-                for w in lines if w.type == 'line')
+    def get_total(cls, lines, names):
+        res = {}
+        pool = Pool()
+        Work = pool.get('project.work')
+        for name in Work._get_summary_fields():
+            res[name] = {}
 
-    @classmethod
-    def _get_revenue(cls, lines):
-        return dict((w.id, (w.unit_price or 0)*Decimal(str(w.quantity or 0)))
-            for w in lines if w.type == 'line')
+        limit_date = Transaction().context.get('limit_date')
+        for line in lines:
+            if line.type != 'line':
+                continue
+            if limit_date != None and line.sale.sale_date > limit_date:
+                continue
+            res['revenue'][line.id] = line.amount
+            res['progress_revenue'][line.id] = (line.amount *
+                (line.project.progress_quantity or Decimal(0)))
+            res['cost'][line.id] = (line.cost_price or 0)*Decimal(
+                str(line.quantity or 0))
+            res['progress_cost'][line.id] = Decimal(0)
+
+        for key in res.keys():
+            if key not in names:
+                del res[key]
+
+        return res
 
     @staticmethod
     def _get_summary_related_field():
         return 'project'
+
 
 class Sale:
     __name__ = 'sale.sale'
