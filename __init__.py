@@ -8,6 +8,5 @@ def register():
     Pool.register(
         sale.ProjectSummary,
         sale.Work,
-        sale.Sale,
         sale.SaleLine,
         module='project_management_with_sales', type_='model')
