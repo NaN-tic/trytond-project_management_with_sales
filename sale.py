@@ -49,8 +49,8 @@ class SaleLine:
             res['revenue'][line.id] = line.amount
             res['progress_revenue'][line.id] = (line.amount *
                     Decimal(line.project.progress_quantity_percent))
-            res['cost'][line.id] = (line.cost_price or 0)*Decimal(
-                str(line.quantity or 0))
+            res['cost'][line.id] = (line.product.cost_price or 0)*Decimal(
+                str(line.quantity or 0)) if line.product else 0
             res['progress_cost'][line.id] = Decimal(0)
 
         for key in res.keys():
