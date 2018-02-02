@@ -8,8 +8,8 @@ __all__ = ['SaleLine', 'Work', 'ProjectSummary']
 
 
 class Work:
-    __name__ = 'project.work'
     __metaclass__ = PoolMeta
+    __name__ = 'project.work'
 
     @classmethod
     def _get_summary_models(cls):
@@ -18,9 +18,8 @@ class Work:
 
 
 class ProjectSummary:
-
-    __name__ = 'project.work.summary'
     __metaclass__ = PoolMeta
+    __name__ = 'project.work.summary'
 
     @classmethod
     def union_models(cls):
@@ -29,8 +28,8 @@ class ProjectSummary:
 
 
 class SaleLine:
-    __name__ = 'sale.line'
     __metaclass__ = PoolMeta
+    __name__ = 'sale.line'
 
     @classmethod
     def get_total(cls, lines, names):
